@@ -1,0 +1,64 @@
+image: node:latest
+
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - install
+  - build-deploy
+
+install:
+  stage: install
+  only:
+    - master
+  script:
+    - npm install --legacy-peer-deps
+
+# test:
+#   stage: build-deploy
+#   environment:
+#     name: test
+#     url: https://iiv.ux.uz/test/admosg/
+#   only:
+#     - master
+#   script:
+#     - echo "Build"
+#     - NODE_ENV=development npx vue-cli-service build --mode development
+#     - echo "Deploy to test server"
+#     - ssh-add <(echo "$SSH_PRIVATE_KEY")
+#     - mkdir -p ~/.ssh
+#     - chmod 700 ~/.ssh
+#     - ssh-keyscan $SSH_HOST >> ~/.ssh/known_hosts
+#     - chmod 644 ~/.ssh/known_hosts
+#     - scp -r ./dist/* $SSH_USER@$SSH_HOST:/home/iiv/docker/iiv.ux.uz/test/admin
+
+production:
+  stage: build-deploy
+  environment:
+    name: production
+    url: https://iiv.uz/admosg/
+  only:
+    - master
+  when: manual
+
+  before_script:
+    - "command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )"
+    - eval $(ssh-agent -s)
+
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+    - echo "$SSH_HOST" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+
+  script:
+    - echo "Build"
+    - NODE_ENV=production npm run build
+
+    - echo "Deploy to production server"
+    - scp -r ./dist/* $SSH_USER@$SSH_HOST:/home/iiv/docker/admin

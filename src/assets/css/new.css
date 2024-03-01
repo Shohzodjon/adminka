@@ -1,0 +1,8 @@
+.form-group--error .error-text {
+  color: red;
+  display: block;
+}
+
+.error-text {
+  display: none;
+}
